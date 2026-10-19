@@ -60,6 +60,106 @@ function parse(html: string): Signal[] {
   return [...out.values()].reverse();
 }
 
+// Same format as the <time datetime> attribute on t.me/s, so a post read via
+// the bot and via the web preview produces the identical signalId (no dupes).
+function toTelegramIso(unixSeconds: number): string {
+  return new Date(unixSeconds * 1000).toISOString().replace(/\.\d{3}Z$/, "+00:00");
+}
+
+function parseText(text: string, postedAt: string): Signal | null {
+  const clean = text.replace(/\s+/g, " ").trim();
+  const match = clean.match(/\bTRX\s*[-:#]?\s*(\d{1,30})\s+(B|S|BIG|SMALL)\b(?:\s+(\d+))?/i);
+  if (!match) return null;
+  const period = match[1] ?? "";
+  const rawDirection = (match[2] ?? "").toUpperCase();
+  const sourceDirection: Direction =
+    rawDirection === "B" || rawDirection === "BIG" ? "BIG" : "SMALL";
+  const direction: Direction = sourceDirection === "BIG" ? "SMALL" : "BIG";
+  return {
+    signalId: `${period}:${postedAt}`,
+    period,
+    sourceDirection,
+    direction,
+    level: Number(match[3] ?? 1),
+    sourceText: clean,
+    postedAt,
+  };
+}
+
+const CHANNEL_USERNAME = "formula_1_si";
+
+// The t.me/s web preview lags the real channel by up to ~70 seconds. When a
+// bot that is an admin of the channel is configured, read new posts straight
+// from the Bot API, which delivers them the moment they are published.
+type BotFetch = { signals: Signal[]; ack: number | null };
+
+async function fetchFromBot(): Promise<BotFetch> {
+  const token = process.env["TELEGRAM_BOT_TOKEN"];
+  if (!token) return { signals: [], ack: null };
+  const api = `https://api.telegram.org/bot${token}`;
+  const res = await fetch(
+    `${api}/getUpdates?timeout=0&allowed_updates=${encodeURIComponent('["channel_post"]')}`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) {
+    console.error("[v0] telegram bot status:", res.status);
+    return { signals: [], ack: null };
+  }
+  const json = (await res.json()) as {
+    result?: {
+      update_id: number;
+      channel_post?: {
+        date: number;
+        text?: string;
+        caption?: string;
+        chat?: { username?: string };
+      };
+    }[];
+  };
+  const updates = json.result ?? [];
+  const signals: Signal[] = [];
+  for (const update of updates) {
+    const post = update.channel_post;
+    if (!post || post.chat?.username?.toLowerCase() !== CHANNEL_USERNAME) continue;
+    const signal = parseText(post.text ?? post.caption ?? "", toTelegramIso(post.date));
+    if (signal) signals.push(signal);
+  }
+  const lastUpdate = updates[updates.length - 1];
+  return { signals, ack: lastUpdate ? lastUpdate.update_id + 1 : null };
+}
+
+async function ackBotUpdates(offset: number) {
+  const token = process.env["TELEGRAM_BOT_TOKEN"];
+  if (!token) return;
+  await fetch(`https://api.telegram.org/bot${token}/getUpdates?timeout=0&limit=1&offset=${offset}`, {
+    cache: "no-store",
+  }).catch(() => {});
+}
+
+async function fetchFromWebPreview(): Promise<Signal[]> {
+  const headers = {
+    accept: "text/html",
+    "user-agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+  };
+  // Two URL variants are served from different cache entries; whichever is
+  // fresher wins, which trims a few seconds off the preview lag.
+  const urls = [`${CHANNEL}?t=${Date.now()}`, `${CHANNEL}?before=999999999&t=${Date.now()}`];
+  const pages = await Promise.all(
+    urls.map(async (url) => {
+      try {
+        const res = await fetch(url, { headers, cache: "no-store" });
+        if (res.ok) return parse(await res.text());
+        console.error("[v0] signals upstream status:", res.status);
+      } catch (upstreamError) {
+        console.error("[v0] signals upstream unavailable:", String(upstreamError));
+      }
+      return [] as Signal[];
+    }),
+  );
+  return pages.flat();
+}
+
 export const Route = createFileRoute("/api/public/signals")({
   server: {
     handlers: {
@@ -73,24 +173,19 @@ export const Route = createFileRoute("/api/public/signals")({
 
           // Fetch the Telegram channel, but never let an upstream outage take
           // down the whole endpoint: fall back to the signals already stored.
-          let parsed: Signal[] = [];
-          try {
-            const res = await fetch(`${CHANNEL}?t=${Date.now()}`, {
-              headers: {
-                accept: "text/html",
-                "user-agent":
-                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-              },
-            });
-            if (res.ok) {
-              const html = await res.text();
-              parsed = parse(html);
-            } else {
-              console.error("[v0] signals upstream status:", res.status);
-            }
-          } catch (upstreamError) {
-            console.error("[v0] signals upstream unavailable:", String(upstreamError));
+          const [bot, webSignals] = await Promise.all([
+            fetchFromBot().catch((botError): BotFetch => {
+              console.error("[v0] telegram bot unavailable:", String(botError));
+              return { signals: [], ack: null };
+            }),
+            fetchFromWebPreview(),
+          ]);
+          const byId = new Map<string, Signal>();
+          for (const signal of [...bot.signals, ...webSignals]) {
+            if (!byId.has(signal.signalId)) byId.set(signal.signalId, signal);
           }
+          const parsed = [...byId.values()];
+          const botAck = bot.ack;
 
           // Insert only new periods. This makes the signal shown to every
           // visitor deterministic and prevents edited Telegram posts from
@@ -113,6 +208,9 @@ export const Route = createFileRoute("/api/public/signals")({
 
             if (insertError) throw new Error(insertError.message);
           }
+
+          // Only confirm bot updates once they are safely stored.
+          if (botAck) await ackBotUpdates(botAck);
 
           const { data: stored, error: readError } = await supabase
             .from("signal_snapshots")
