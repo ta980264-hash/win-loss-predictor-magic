@@ -169,7 +169,21 @@ export const Route = createFileRoute("/api/public/signals")({
           // bypasses RLS. The anon key only has SELECT (and no INSERT) on
           // signal_snapshots, so writing with it fails the RLS policy. This
           // route never ships to the client bundle, so the secret stays server-side.
-          const { supabaseAdmin: supabase } = await import("@/integrations/supabase/client.server");
+          // Without the service-role secret, fall back to the publishable key:
+          // it can still read stored signals, and live Telegram posts are merged
+          // in memory below so new signals appear immediately.
+          const canWrite = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+          const supabase = canWrite
+            ? (await import("@/integrations/supabase/client.server")).supabaseAdmin
+            : (await import("@supabase/supabase-js")).createClient<
+                import("@/integrations/supabase/types").Database
+              >(
+                process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? "",
+                process.env.SUPABASE_PUBLISHABLE_KEY ??
+                  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+                  "",
+                { auth: { persistSession: false, autoRefreshToken: false } },
+              );
 
           // Fetch the Telegram channel, but never let an upstream outage take
           // down the whole endpoint: fall back to the signals already stored.
@@ -190,7 +204,7 @@ export const Route = createFileRoute("/api/public/signals")({
           // Insert only new periods. This makes the signal shown to every
           // visitor deterministic and prevents edited Telegram posts from
           // rewriting historical website signals.
-          if (parsed.length) {
+          if (canWrite && parsed.length) {
             const { error: insertError } = await supabase
               .from("signal_snapshots")
               .upsert(
@@ -210,7 +224,7 @@ export const Route = createFileRoute("/api/public/signals")({
           }
 
           // Only confirm bot updates once they are safely stored.
-          if (botAck) await ackBotUpdates(botAck);
+          if (canWrite && botAck) await ackBotUpdates(botAck);
 
           const { data: stored, error: readError } = await supabase
             .from("signal_snapshots")
@@ -220,7 +234,7 @@ export const Route = createFileRoute("/api/public/signals")({
             .order("posted_at", { ascending: false, nullsFirst: false })
             .limit(100);
 
-          if (readError) throw new Error(readError.message);
+          if (readError && canWrite) throw new Error(readError.message);
 
           const list = (stored ?? []).map((row) => ({
             signalId: row.signal_id,
@@ -232,6 +246,24 @@ export const Route = createFileRoute("/api/public/signals")({
             postedAt: row.posted_at,
             capturedAt: row.captured_at,
           }));
+
+          if (!canWrite) {
+            const storedIds = new Set(list.map((item) => item.signalId));
+            const now = new Date().toISOString();
+            for (const signal of parsed) {
+              if (storedIds.has(signal.signalId)) continue;
+              list.push({
+                signalId: signal.signalId,
+                period: signal.period,
+                sourceDirection: signal.sourceDirection,
+                direction: signal.direction,
+                level: signal.level,
+                sourceText: signal.sourceText,
+                postedAt: signal.postedAt,
+                capturedAt: now,
+              });
+            }
+          }
 
           // Newest post first. Periods reset (for example back to 1), so
           // sorting numerically by period made new signals sink to the bottom
