@@ -48,7 +48,7 @@ export function SignalsPanel() {
       }
     };
     load();
-    const id = setInterval(load, 3000);
+    const id = setInterval(load, 1500);
     return () => {
       alive = false;
       clearInterval(id);
