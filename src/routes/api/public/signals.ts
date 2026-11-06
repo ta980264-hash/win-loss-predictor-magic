@@ -172,15 +172,15 @@ export const Route = createFileRoute("/api/public/signals")({
           // Without the service-role secret, fall back to the publishable key:
           // it can still read stored signals, and live Telegram posts are merged
           // in memory below so new signals appear immediately.
-          const canWrite = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+          const canWrite = Boolean(process.env["SUPABASE_SERVICE_ROLE_KEY"]);
           const supabase = canWrite
             ? (await import("@/integrations/supabase/client.server")).supabaseAdmin
             : (await import("@supabase/supabase-js")).createClient<
                 import("@/integrations/supabase/types").Database
               >(
-                process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? "",
-                process.env.SUPABASE_PUBLISHABLE_KEY ??
-                  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+                process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "",
+                process.env["SUPABASE_PUBLISHABLE_KEY"] ??
+                  process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ??
                   "",
                 { auth: { persistSession: false, autoRefreshToken: false } },
               );
