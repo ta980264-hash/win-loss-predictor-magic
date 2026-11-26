@@ -86,7 +86,7 @@ export function TelegramGate({ children }: { children: (user: TgUser) => ReactNo
   if (!user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-5">
-        <div className="w-full max-w-sm rounded-2xl border border-gold/40 bg-surface p-7 text-center shadow-[0_0_40px_-14px_var(--gold)]">
+        <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-7 text-center shadow-brand">
           <img
             src="https://i.ibb.co/TDnRFdGw/IMG-20260730-162018-470.jpg"
             alt="Dr Thet Pyinn VIP Signals logo"

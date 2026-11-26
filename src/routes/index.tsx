@@ -46,9 +46,9 @@ function colorDots(color: string) {
 }
 
 function dotClass(c: string) {
-  if (c === "red") return "bg-primary";
-  if (c === "green") return "bg-emerald-500";
-  if (c === "violet") return "bg-violet-500";
+  if (c === "red") return "bg-destructive";
+  if (c === "green") return "bg-success";
+  if (c === "violet") return "bg-pending";
   return "bg-muted-foreground";
 }
 
@@ -170,7 +170,7 @@ function Dashboard({ user }: { user: TgUser }) {
               Dr Thet Pyinn <span className="text-gold">VIP</span> Signals
             </h1>
           </div>
-          <span className="flex max-w-[40%] items-center gap-2 rounded-full border border-gold/40 px-2 py-1 text-xs text-muted-foreground">
+          <span className="flex max-w-[40%] items-center gap-2 rounded-full border border-border px-2 py-1 text-xs text-muted-foreground">
             {user.photo_url ? (
               <img
                 src={user.photo_url}
@@ -188,7 +188,7 @@ function Dashboard({ user }: { user: TgUser }) {
       </header>
 
       <div className="mx-auto max-w-3xl px-4 py-5">
-        <section className="mb-5 rounded-xl border border-gold/40 bg-surface p-5 shadow-[0_0_30px_-12px_var(--gold)]">
+        <section className="mb-5 rounded-xl border border-border bg-surface p-5 shadow-brand">
           <div className="flex items-end justify-between gap-4">
             <div className="min-w-0">
               <p className="font-display text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
@@ -268,7 +268,7 @@ function Dashboard({ user }: { user: TgUser }) {
                               <div
                                 className={`font-display text-xl font-bold ${
                                   colorDots(row.color).includes("red")
-                                    ? "text-primary"
+                                    ? "text-destructive"
                                     : "text-foreground"
                                 }`}
                               >

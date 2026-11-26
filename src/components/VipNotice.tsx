@@ -5,7 +5,7 @@ const OWNER_TG = "5471930058";
 
 export function VipLocked() {
   return (
-    <div className="rounded-2xl border border-gold/40 bg-surface p-4 text-center shadow-[0_0_40px_-16px_var(--gold)]">
+    <div className="rounded-2xl border border-border bg-surface p-4 text-center shadow-brand">
       <img
         src={LOCK_IMG}
         alt="VIP members only"
@@ -31,7 +31,7 @@ export function VipLocked() {
 
 export function VipWelcome({ expiresAt }: { expiresAt: string | null }) {
   return (
-    <div className="mb-5 overflow-hidden rounded-2xl border border-gold/40 bg-surface text-center shadow-[0_0_40px_-16px_var(--gold)]">
+    <div className="mb-5 overflow-hidden rounded-2xl border border-border bg-surface text-center shadow-brand">
       <img src={WELCOME_IMG} alt="VIP member welcome" className="w-full object-cover" />
       <div className="px-4 py-3">
         <p className="font-display text-sm font-bold text-gold">

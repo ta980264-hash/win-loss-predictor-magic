@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep theme colors and shared interaction shadows in `src/styles.css` semantic tokens; presentation-only changes must not alter component structure or business logic.

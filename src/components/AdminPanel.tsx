@@ -61,7 +61,7 @@ export function AdminPanel({ adminId }: { adminId: string }) {
         Admin Panel
       </h2>
 
-      <div className="rounded-xl border border-gold/40 bg-surface p-4">
+      <div className="rounded-xl border border-border bg-surface p-4">
         <p className="font-display text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
           Grant by Telegram ID
         </p>
@@ -134,7 +134,7 @@ export function AdminPanel({ adminId }: { adminId: string }) {
                 </div>
                 <span
                   className={`shrink-0 rounded-md px-2 py-1 font-display text-[10px] font-bold uppercase ${
-                    active ? "bg-emerald-500 text-background" : "bg-primary text-primary-foreground"
+                    active ? "bg-success text-success-foreground" : "bg-secondary text-secondary-foreground"
                   }`}
                 >
                   {active ? "VIP" : "Free"}
@@ -163,7 +163,7 @@ export function AdminPanel({ adminId }: { adminId: string }) {
                 <button
                   disabled={busy === u.telegram_id + "revoke"}
                   onClick={() => apply(u.telegram_id, "revoke")}
-                  className="rounded-lg border border-border px-3 py-2 font-display text-xs font-bold text-muted-foreground disabled:opacity-50"
+                  className="rounded-lg border border-border px-3 py-2 font-display text-xs font-bold text-destructive hover:border-destructive hover:bg-destructive/10 disabled:opacity-50"
                 >
                   Remove
                 </button>

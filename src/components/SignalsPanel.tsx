@@ -118,7 +118,7 @@ export function SignalsPanel() {
       </div>
 
       {latest ? (
-        <div className="overflow-hidden rounded-2xl border border-gold/40 bg-surface shadow-[0_0_40px_-16px_var(--gold)]">
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-brand">
           <img
              src={latest.direction === "BIG" ? BIG_IMG : SMALL_IMG}
              alt={`${latest.direction} signal`}
@@ -130,7 +130,7 @@ export function SignalsPanel() {
                 Transaction no
               </p>
                <p className="truncate font-display text-base font-bold tabular-nums">{latest.fullPeriod}</p>
-               <p className="mt-1 text-[11px] font-bold text-emerald-400">
+               <p className="mt-1 text-[11px] font-bold text-success">
                  Win chance: {latest.winChance}%
                </p>
             </div>
@@ -166,7 +166,7 @@ export function SignalsPanel() {
               {displayRows.map((r) => (
                <tr key={r.signalId} className="border-t border-border bg-surface">
                 <td className="px-2 py-3 font-display text-[11px] tabular-nums">{r.fullPeriod}</td>
-                 <td className="px-2 py-3 text-center font-display text-xs font-bold text-emerald-400 tabular-nums">
+                 <td className="px-2 py-3 text-center font-display text-xs font-bold text-success tabular-nums">
                    {r.winChance}%
                 </td>
                 <td className="px-2 py-3 text-center">
@@ -183,9 +183,9 @@ export function SignalsPanel() {
                   <span
                     className={`inline-block rounded-md px-2 py-1 font-display text-[11px] font-bold ${
                       r.outcome === "WIN"
-                        ? "bg-emerald-500 text-background"
+                        ? "bg-success text-success-foreground"
                         : r.outcome === "LOSS"
-                          ? "bg-primary text-primary-foreground"
+                          ? "bg-destructive text-destructive-foreground"
                           : "bg-pending text-pending-foreground"
                     }`}
                   >
